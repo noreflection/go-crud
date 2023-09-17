@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"log"
 	"net/http"
 )
 
@@ -13,8 +16,9 @@ var (
 )
 
 func main() {
+	_ = ensureDatabaseExists()
 	// Initialize the database connection
-	dsn := "User ID =postgres;Password=password;Server=localhost;Port=5432;Database=core-service-db; Integrated Security=true;Pooling=true;"
+	dsn := "host=localhost user=postgres password=password dbname=core-service-db port=5432 sslmode=disable"
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("Failed to connect to the database")
@@ -41,6 +45,38 @@ func main() {
 
 	// Start the server
 	r.Run(":8080")
+}
+
+func ensureDatabaseExists() error {
+	fmt.Printf("ensuring")
+	// Database connection parameters
+	connectionString := "user=username dbname=postgres sslmode=disable"
+	db, err := sql.Open("postgres", connectionString)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// Check if the database exists
+	query := "SELECT 1 FROM pg_database WHERE datname = 'core-service-db'"
+	var exists int
+	err = db.QueryRow(query).Scan(&exists)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if exists != 1 {
+		// Create the database if it doesn't exist
+		_, err = db.Exec("CREATE DATABASE core-service-db")
+		if err != nil {
+			return err
+		}
+		fmt.Println("Database 'core-service-db' created.")
+	} else {
+		fmt.Println("Database 'core-service-db' already exists.")
+	}
+
+	return nil
 }
 
 // ... (Other CRUD handler functions)
